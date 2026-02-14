@@ -1,24 +1,14 @@
 {
   "name": "airfrance-utilities",
   "version": "1.0.0",
-  "description": "Air France flying points Discord bot with persistent storage",
+  "description": "Air France flying points Discord bot",
   "main": "bot.js",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": "18.x"
   },
   "scripts": {
-    "start": "node bot.js",
-    "dev": "node bot.js"
+    "start": "node bot.js"
   },
-  "keywords": [
-    "discord",
-    "bot",
-    "points",
-    "airfrance"
-  ],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@discordjs/rest": "^2.2.0",
     "better-sqlite3": "^9.2.2",

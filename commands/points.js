@@ -6,42 +6,22 @@ class PointsCommands {
         this.staffRoleId = staffRoleId;
     }
 
-    // Check if user is staff
     isStaff(member) {
-        return member.roles.cache.has(this.staffRoleId) || 
-               member.permissions.has(PermissionFlagsBits.Administrator);
+        return member.roles.cache.has(this.staffRoleId) || member.permissions.has(PermissionFlagsBits.Administrator);
     }
 
-    // Handle add points command
     async handleAdd(interaction) {
         if (!this.isStaff(interaction.member)) {
-            return interaction.reply({ 
-                content: '❌ You need staff permissions to add points!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ You need staff permissions to add points!', ephemeral: true });
         }
-
         const targetUser = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
         const reason = interaction.options.getString('reason') || 'No reason provided';
-
         if (amount <= 0) {
-            return interaction.reply({ 
-                content: '❌ Amount must be positive!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ Amount must be positive!', ephemeral: true });
         }
-
         try {
-            const newPoints = this.db.addPoints(
-                targetUser.id,
-                targetUser.username,
-                amount,
-                interaction.user.id,
-                interaction.user.username,
-                reason
-            );
-
+            const newPoints = this.db.addPoints(targetUser.id, targetUser.username, amount, interaction.user.id, interaction.user.username, reason);
             const embed = new EmbedBuilder()
                 .setColor('#00FF00')
                 .setTitle('✈️ Flying Points Added')
@@ -55,47 +35,25 @@ class PointsCommands {
                 .setThumbnail(targetUser.displayAvatarURL())
                 .setTimestamp()
                 .setFooter({ text: 'Air France Utilities' });
-
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
             console.error('Error adding points:', error);
-            await interaction.reply({ 
-                content: '❌ An error occurred while adding points.', 
-                ephemeral: true 
-            });
+            await interaction.reply({ content: '❌ An error occurred while adding points.', ephemeral: true });
         }
     }
 
-    // Handle deduct points command
     async handleDeduct(interaction) {
         if (!this.isStaff(interaction.member)) {
-            return interaction.reply({ 
-                content: '❌ You need staff permissions to deduct points!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ You need staff permissions to deduct points!', ephemeral: true });
         }
-
         const targetUser = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
         const reason = interaction.options.getString('reason') || 'No reason provided';
-
         if (amount <= 0) {
-            return interaction.reply({ 
-                content: '❌ Amount must be positive!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ Amount must be positive!', ephemeral: true });
         }
-
         try {
-            const newPoints = this.db.deductPoints(
-                targetUser.id,
-                targetUser.username,
-                amount,
-                interaction.user.id,
-                interaction.user.username,
-                reason
-            );
-
+            const newPoints = this.db.deductPoints(targetUser.id, targetUser.username, amount, interaction.user.id, interaction.user.username, reason);
             const embed = new EmbedBuilder()
                 .setColor('#FF0000')
                 .setTitle('✈️ Flying Points Deducted')
@@ -109,78 +67,53 @@ class PointsCommands {
                 .setThumbnail(targetUser.displayAvatarURL())
                 .setTimestamp()
                 .setFooter({ text: 'Air France Utilities' });
-
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
             console.error('Error deducting points:', error);
-            await interaction.reply({ 
-                content: '❌ An error occurred while deducting points.', 
-                ephemeral: true 
-            });
+            await interaction.reply({ content: '❌ An error occurred while deducting points.', ephemeral: true });
         }
     }
 
-    // Handle view points command (public)
     async handleView(interaction) {
         const targetUser = interaction.options.getUser('user') || interaction.user;
-        
         try {
             const userData = this.db.getPoints(targetUser.id);
             const points = userData?.points || 0;
-
             const embed = new EmbedBuilder()
                 .setColor('#0099FF')
                 .setTitle('✈️ Flying Points Balance')
                 .setDescription(`Points for ${targetUser}`)
-                .addFields(
-                    { name: 'Current Balance', value: `${points.toLocaleString()} points`, inline: false }
-                )
+                .addFields({ name: 'Current Balance', value: `${points.toLocaleString()} points`, inline: false })
                 .setThumbnail(targetUser.displayAvatarURL())
                 .setTimestamp()
                 .setFooter({ text: 'Air France Utilities' });
-
             if (userData?.last_updated) {
-                embed.addFields({
-                    name: 'Last Updated',
-                    value: `<t:${userData.last_updated}:R>`,
-                    inline: true
-                });
+                embed.addFields({ name: 'Last Updated', value: `<t:${userData.last_updated}:R>`, inline: true });
             }
-
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
             console.error('Error viewing points:', error);
-            await interaction.reply({ 
-                content: '❌ An error occurred while fetching points.', 
-                ephemeral: true 
-            });
+            await interaction.reply({ content: '❌ An error occurred while fetching points.', ephemeral: true });
         }
     }
 
-    // Handle leaderboard command (public)
     async handleLeaderboard(interaction) {
         await interaction.deferReply();
-
         try {
             const leaderboard = this.db.getLeaderboard(10);
-            
             if (leaderboard.length === 0) {
                 return interaction.editReply('📊 No points have been awarded yet!');
             }
-
             const stats = this.db.getStats();
             let description = '';
             const medals = ['🥇', '🥈', '🥉'];
-
             for (let i = 0; i < leaderboard.length; i++) {
                 const entry = leaderboard[i];
                 const medal = i < 3 ? medals[i] : `**${i + 1}.**`;
                 const user = await interaction.client.users.fetch(entry.user_id).catch(() => null);
                 const username = user ? user.username : entry.username;
-                
                 description += `${medal} **${username}** - ${entry.points.toLocaleString()} points\n`;
             }
-
             const embed = new EmbedBuilder()
                 .setColor('#FFD700')
                 .setTitle('🏆 Flying Points Leaderboard')
@@ -192,7 +125,6 @@ class PointsCommands {
                 )
                 .setTimestamp()
                 .setFooter({ text: 'Air France Utilities • Top 10' });
-
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('Error showing leaderboard:', error);
@@ -200,27 +132,17 @@ class PointsCommands {
         }
     }
 
-    // Handle history command
     async handleHistory(interaction) {
         const targetUser = interaction.options.getUser('user') || interaction.user;
-        
-        // Only staff can view others' history
         if (targetUser.id !== interaction.user.id && !this.isStaff(interaction.member)) {
-            return interaction.reply({ 
-                content: '❌ You can only view your own history!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ You can only view your own history!', ephemeral: true });
         }
-
         await interaction.deferReply({ ephemeral: targetUser.id === interaction.user.id });
-
         try {
             const history = this.db.getHistory(targetUser.id, 10);
-            
             if (history.length === 0) {
                 return interaction.editReply(`No transaction history found for ${targetUser.username}.`);
             }
-
             let description = '';
             for (const entry of history) {
                 const sign = entry.amount > 0 ? '+' : '';
@@ -230,14 +152,12 @@ class PointsCommands {
                 if (entry.reason) description += `└ Reason: ${entry.reason}\n`;
                 description += `└ <t:${entry.timestamp}:R>\n\n`;
             }
-
             const embed = new EmbedBuilder()
                 .setColor('#9B59B6')
                 .setTitle(`📜 Points History - ${targetUser.username}`)
                 .setDescription(description)
                 .setTimestamp()
                 .setFooter({ text: 'Air France Utilities • Last 10 transactions' });
-
             await interaction.editReply({ embeds: [embed] });
         } catch (error) {
             console.error('Error showing history:', error);
@@ -245,39 +165,21 @@ class PointsCommands {
         }
     }
 
-    // Handle set points command (staff only)
     async handleSet(interaction) {
         if (!this.isStaff(interaction.member)) {
-            return interaction.reply({ 
-                content: '❌ You need staff permissions to set points!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ You need staff permissions to set points!', ephemeral: true });
         }
-
         const targetUser = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
         const reason = interaction.options.getString('reason') || 'Points manually set';
-
         if (amount < 0) {
-            return interaction.reply({ 
-                content: '❌ Amount cannot be negative!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ Amount cannot be negative!', ephemeral: true });
         }
-
         try {
             const oldData = this.db.getPoints(targetUser.id);
             const oldPoints = oldData?.points || 0;
-
             this.db.setPoints(targetUser.id, targetUser.username, amount);
-            this.db.addHistory(
-                targetUser.id,
-                interaction.user.id,
-                interaction.user.username,
-                amount - oldPoints,
-                `${reason} (Set from ${oldPoints} to ${amount})`
-            );
-
+            this.db.addHistory(targetUser.id, interaction.user.id, interaction.user.username, amount - oldPoints, `${reason} (Set from ${oldPoints} to ${amount})`);
             const embed = new EmbedBuilder()
                 .setColor('#FFA500')
                 .setTitle('✈️ Flying Points Set')
@@ -291,43 +193,22 @@ class PointsCommands {
                 .setThumbnail(targetUser.displayAvatarURL())
                 .setTimestamp()
                 .setFooter({ text: 'Air France Utilities' });
-
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
             console.error('Error setting points:', error);
-            await interaction.reply({ 
-                content: '❌ An error occurred while setting points.', 
-                ephemeral: true 
-            });
+            await interaction.reply({ content: '❌ An error occurred while setting points.', ephemeral: true });
         }
     }
 
-    // Handle database info command (staff only)
     async handleDbInfo(interaction) {
         if (!this.isStaff(interaction.member)) {
-            return interaction.reply({ 
-                content: '❌ Staff only command!', 
-                ephemeral: true 
-            });
+            return interaction.reply({ content: '❌ Staff only command!', ephemeral: true });
         }
-
         const fs = require('fs');
         const path = require('path');
-        
-        let dbPath;
-        if (process.env.FLY_APP_NAME) {
-            dbPath = '/data/points.db';
-        } else if (process.env.RENDER) {
-            dbPath = '/var/data/points.db';
-        } else if (process.env.RAILWAY_ENVIRONMENT) {
-            dbPath = '/app/data/points.db';
-        } else {
-            dbPath = path.join(__dirname, '..', 'points.db');
-        }
-        
+        const dbPath = path.join(__dirname, '..', 'data', 'points.db');
         let fileSize = 'Unknown';
         let fileExists = false;
-        
         try {
             const stats = fs.statSync(dbPath);
             fileSize = (stats.size / 1024).toFixed(2) + ' KB';
@@ -335,19 +216,12 @@ class PointsCommands {
         } catch (error) {
             fileExists = false;
         }
-
         const dbStats = this.db.getStats();
-        
-        let platform = '💻 Local';
-        if (process.env.FLY_APP_NAME) platform = '☁️ Fly.io';
-        else if (process.env.RENDER) platform = '☁️ Render';
-        else if (process.env.RAILWAY_ENVIRONMENT) platform = '☁️ Railway';
-
         const embed = new EmbedBuilder()
             .setColor('#9B59B6')
             .setTitle('🗄️ Database Information')
             .addFields(
-                { name: 'Platform', value: platform, inline: true },
+                { name: 'Platform', value: '☁️ Render', inline: true },
                 { name: 'Location', value: `\`${dbPath}\``, inline: false },
                 { name: 'File Exists', value: fileExists ? '✅ Yes' : '❌ No', inline: true },
                 { name: 'File Size', value: fileSize, inline: true },
@@ -357,7 +231,6 @@ class PointsCommands {
             )
             .setTimestamp()
             .setFooter({ text: 'Air France Utilities' });
-
         await interaction.reply({ embeds: [embed], ephemeral: true });
     }
 }

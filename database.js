@@ -4,46 +4,24 @@ const fs = require('fs');
 
 class PointsDatabase {
     constructor() {
-        // Determine database path based on environment
-        let dbPath;
+        // Store database in the project directory
+        const dbPath = path.join(__dirname, 'data', 'points.db');
         
-        if (process.env.FLY_APP_NAME) {
-            // Fly.io persistent volume mounted at /data
-            dbPath = '/data/points.db';
-            console.log('☁️ Running on Fly.io with persistent storage');
-        } else if (process.env.RENDER) {
-            // Render persistent disk
-            dbPath = '/var/data/points.db';
-            console.log('☁️ Running on Render with persistent storage');
-        } else if (process.env.RAILWAY_ENVIRONMENT) {
-            // Railway persistent storage
-            dbPath = '/app/data/points.db';
-            console.log('☁️ Running on Railway');
-        } else {
-            // Local development
-            dbPath = path.join(__dirname, 'points.db');
-            console.log('💻 Running locally');
-        }
-        
-        // Ensure directory exists
+        // Ensure data directory exists
         const dir = path.dirname(dbPath);
         if (!fs.existsSync(dir)) {
-            try {
-                fs.mkdirSync(dir, { recursive: true });
-                console.log(`📁 Created directory: ${dir}`);
-            } catch (error) {
-                console.error(`❌ Failed to create directory ${dir}:`, error);
-            }
+            fs.mkdirSync(dir, { recursive: true });
+            console.log(`📁 Created directory: ${dir}`);
         }
         
         console.log(`📂 Database location: ${dbPath}`);
         
         try {
             this.db = new Database(dbPath);
-            this.db.pragma('journal_mode = WAL'); // Write-Ahead Logging for better performance
-            this.db.pragma('synchronous = NORMAL'); // Balance between safety and speed
+            this.db.pragma('journal_mode = WAL');
+            this.db.pragma('synchronous = NORMAL');
             this.initialize();
-            console.log('✅ Database connected and initialized successfully');
+            console.log('✅ Database connected successfully');
         } catch (error) {
             console.error('❌ Database initialization failed:', error);
             throw error;
@@ -51,7 +29,6 @@ class PointsDatabase {
     }
 
     initialize() {
-        // Create tables if they don't exist
         this.db.exec(`
             CREATE TABLE IF NOT EXISTS flying_points (
                 user_id TEXT PRIMARY KEY,
@@ -78,13 +55,11 @@ class PointsDatabase {
         console.log('✅ Database tables initialized');
     }
 
-    // Get user points
     getPoints(userId) {
         const stmt = this.db.prepare('SELECT * FROM flying_points WHERE user_id = ?');
         return stmt.get(userId);
     }
 
-    // Set user points (creates if doesn't exist)
     setPoints(userId, username, points) {
         const stmt = this.db.prepare(`
             INSERT INTO flying_points (user_id, username, points, last_updated)
@@ -97,7 +72,6 @@ class PointsDatabase {
         return stmt.run(userId, username, points);
     }
 
-    // Add points to user
     addPoints(userId, username, amount, staffId, staffUsername, reason = null) {
         const current = this.getPoints(userId);
         const newPoints = (current?.points || 0) + amount;
@@ -110,12 +84,10 @@ class PointsDatabase {
         return newPoints;
     }
 
-    // Deduct points from user
     deductPoints(userId, username, amount, staffId, staffUsername, reason = null) {
         return this.addPoints(userId, username, -amount, staffId, staffUsername, reason);
     }
 
-    // Add transaction history
     addHistory(userId, staffId, staffUsername, amount, reason) {
         const stmt = this.db.prepare(`
             INSERT INTO point_history (user_id, staff_id, staff_username, amount, reason)
@@ -124,7 +96,6 @@ class PointsDatabase {
         return stmt.run(userId, staffId, staffUsername, amount, reason);
     }
 
-    // Get leaderboard
     getLeaderboard(limit = 10) {
         const stmt = this.db.prepare(`
             SELECT user_id, username, points, last_updated
@@ -136,7 +107,6 @@ class PointsDatabase {
         return stmt.all(limit);
     }
 
-    // Get user history
     getHistory(userId, limit = 10) {
         const stmt = this.db.prepare(`
             SELECT * FROM point_history
@@ -147,39 +117,22 @@ class PointsDatabase {
         return stmt.all(userId, limit);
     }
 
-    // Get total users with points
     getTotalUsers() {
         const stmt = this.db.prepare('SELECT COUNT(*) as count FROM flying_points WHERE points > 0');
         return stmt.get().count;
     }
 
-    // Get total points distributed
     getTotalPoints() {
         const stmt = this.db.prepare('SELECT SUM(points) as total FROM flying_points');
         return stmt.get().total || 0;
     }
 
-    // Get database stats
     getStats() {
         const totalUsers = this.getTotalUsers();
         const totalPoints = this.getTotalPoints();
         const totalTransactions = this.db.prepare('SELECT COUNT(*) as count FROM point_history').get().count;
         
-        return {
-            totalUsers,
-            totalPoints,
-            totalTransactions
-        };
-    }
-
-    // Get database file size
-    getDatabaseSize() {
-        try {
-            const stats = fs.statSync(this.db.name);
-            return (stats.size / 1024).toFixed(2); // Size in KB
-        } catch (error) {
-            return 'Unknown';
-        }
+        return { totalUsers, totalPoints, totalTransactions };
     }
 
     close() {
