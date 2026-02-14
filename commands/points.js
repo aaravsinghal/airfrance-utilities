@@ -315,10 +315,12 @@ class PointsCommands {
         const path = require('path');
         
         let dbPath;
-        if (process.env.RENDER) {
+        if (process.env.FLY_APP_NAME) {
+            dbPath = '/data/points.db';
+        } else if (process.env.RENDER) {
             dbPath = '/var/data/points.db';
-        } else if (process.env.NODE_ENV === 'production') {
-            dbPath = path.join(__dirname, '..', 'data', 'points.db');
+        } else if (process.env.RAILWAY_ENVIRONMENT) {
+            dbPath = '/app/data/points.db';
         } else {
             dbPath = path.join(__dirname, '..', 'points.db');
         }
@@ -335,15 +337,20 @@ class PointsCommands {
         }
 
         const dbStats = this.db.getStats();
+        
+        let platform = '💻 Local';
+        if (process.env.FLY_APP_NAME) platform = '☁️ Fly.io';
+        else if (process.env.RENDER) platform = '☁️ Render';
+        else if (process.env.RAILWAY_ENVIRONMENT) platform = '☁️ Railway';
 
         const embed = new EmbedBuilder()
             .setColor('#9B59B6')
             .setTitle('🗄️ Database Information')
             .addFields(
+                { name: 'Platform', value: platform, inline: true },
                 { name: 'Location', value: `\`${dbPath}\``, inline: false },
                 { name: 'File Exists', value: fileExists ? '✅ Yes' : '❌ No', inline: true },
                 { name: 'File Size', value: fileSize, inline: true },
-                { name: 'Environment', value: process.env.RENDER ? '☁️ Render' : '💻 Local', inline: true },
                 { name: 'Total Users', value: dbStats.totalUsers.toString(), inline: true },
                 { name: 'Total Points', value: dbStats.totalPoints.toLocaleString(), inline: true },
                 { name: 'Total Transactions', value: dbStats.totalTransactions.toString(), inline: true }

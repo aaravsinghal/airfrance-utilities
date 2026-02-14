@@ -15,7 +15,7 @@ if (!process.env.STAFF_ROLE_ID) {
     console.error('⚠️ STAFF_ROLE_ID is missing - staff commands will require Administrator permission');
 }
 
-// Initialize Express for health checks (required for Render)
+// Initialize Express for health checks
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -50,6 +50,9 @@ app.get('/', (req, res) => {
             connected: true,
             ...stats
         },
+        platform: process.env.FLY_APP_NAME ? 'Fly.io' : 
+                  process.env.RENDER ? 'Render' : 
+                  process.env.RAILWAY_ENVIRONMENT ? 'Railway' : 'Local',
         timestamp: new Date().toISOString()
     });
 });

@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+*.db
+*.db-shm
+*.db-wal
+README.md
+.vscode
+.idea

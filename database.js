@@ -7,30 +7,41 @@ class PointsDatabase {
         // Determine database path based on environment
         let dbPath;
         
-        if (process.env.RENDER) {
-            // Render production environment with persistent disk
+        if (process.env.FLY_APP_NAME) {
+            // Fly.io persistent volume mounted at /data
+            dbPath = '/data/points.db';
+            console.log('☁️ Running on Fly.io with persistent storage');
+        } else if (process.env.RENDER) {
+            // Render persistent disk
             dbPath = '/var/data/points.db';
-            console.log('🌐 Running on Render with persistent storage');
-        } else if (process.env.NODE_ENV === 'production') {
-            // Other production environments
-            dbPath = path.join(__dirname, 'data', 'points.db');
+            console.log('☁️ Running on Render with persistent storage');
+        } else if (process.env.RAILWAY_ENVIRONMENT) {
+            // Railway persistent storage
+            dbPath = '/app/data/points.db';
+            console.log('☁️ Running on Railway');
         } else {
             // Local development
             dbPath = path.join(__dirname, 'points.db');
+            console.log('💻 Running locally');
         }
         
         // Ensure directory exists
         const dir = path.dirname(dbPath);
         if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-            console.log(`📁 Created directory: ${dir}`);
+            try {
+                fs.mkdirSync(dir, { recursive: true });
+                console.log(`📁 Created directory: ${dir}`);
+            } catch (error) {
+                console.error(`❌ Failed to create directory ${dir}:`, error);
+            }
         }
         
         console.log(`📂 Database location: ${dbPath}`);
         
         try {
             this.db = new Database(dbPath);
-            this.db.pragma('journal_mode = WAL'); // Better performance
+            this.db.pragma('journal_mode = WAL'); // Write-Ahead Logging for better performance
+            this.db.pragma('synchronous = NORMAL'); // Balance between safety and speed
             this.initialize();
             console.log('✅ Database connected and initialized successfully');
         } catch (error) {
@@ -63,6 +74,8 @@ class PointsDatabase {
             CREATE INDEX IF NOT EXISTS idx_history_user ON point_history(user_id);
             CREATE INDEX IF NOT EXISTS idx_history_timestamp ON point_history(timestamp DESC);
         `);
+        
+        console.log('✅ Database tables initialized');
     }
 
     // Get user points
@@ -157,6 +170,16 @@ class PointsDatabase {
             totalPoints,
             totalTransactions
         };
+    }
+
+    // Get database file size
+    getDatabaseSize() {
+        try {
+            const stats = fs.statSync(this.db.name);
+            return (stats.size / 1024).toFixed(2); // Size in KB
+        } catch (error) {
+            return 'Unknown';
+        }
     }
 
     close() {
